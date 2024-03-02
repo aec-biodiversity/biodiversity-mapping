@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# wmsCache
+wmsCache/*
+!wmsCache/.gitkeep
+
 # C extensions
 *.so
 
