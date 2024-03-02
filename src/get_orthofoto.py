@@ -6,6 +6,10 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 import hashlib
+import requests
+import imageio
+import numpy as np
+
 
 def get_bbox_dataforsyningen(
     bbox: Tuple[float, float, float, float],
@@ -56,34 +60,42 @@ def get_bbox_dataforsyningen(
         image = Image.open(io.BytesIO(wms_response.read()))
         image.save(png_path)
         return image
+
+def get_bbox_dataforsyningen_wcs(
+    bbox: Tuple[float, float, float, float],
+    token: str,
+    layer: str = "dhm_terraen",
+    size: Tuple[int, int] = None
+):
+    # (width, height) approximately 8 pixels per meter as wms resoultion is 12.5 cm/pixel
+    if size is None:
+        size = int(8 * (bbox[2] - bbox[0])), int(8 * (bbox[3] - bbox[1]))
+
+    url_wcs = "https://api.dataforsyningen.dk/dhm_wcs_DAF?service=WCS&version=1.0"
+    params = f"&token={token}&REQUEST=GetCoverage&coverage={layer}&CRS=epsg:25832&bbox={str(bbox)[1:-1]}&height={size[0]}&width={size[1]}&format=gtiff"
+
+    request_hash = hashlib.md5(params.encode()).hexdigest()
+    tiff_path = f"wcsCache/{request_hash}.tiff"
+
+    if os.path.exists(tiff_path):
+        image = imageio.imread(tiff_path)
+        return np.array(image)
     
-def format_bbox(
-    bbox: Tuple[float, float, float, float], padding: int = 0
-    ) -> Tuple[int, int, int, int]:
-    """
-    Format the bounding box coordinates with padding.
+    else:
+        response = requests.get(url_wcs + params)
 
-    Args:
-        bbox (Tuple[float, float, float, float]): The input bounding box coordinates (xmin, ymin, xmax, ymax).
-        padding (float, optional): The padding value to add to each side of the bounding box. Defaults to 0.
+        image = imageio.imread(response.content)
+        imageio.imwrite(tiff_path, image)
 
-    Returns:
-        Tuple[float, float, float, float]: The formatted bounding box coordinates with padding.
-    """
-    bbox = (
-        bbox[0] - padding,
-        bbox[1] - padding,
-        bbox[2] + padding,
-        bbox[3] + padding,
-    )  # Post-padding
-    bbox = tuple(round(coord) for coord in bbox)
-    return bbox
+        return np.array(image)
+
 
 if __name__ == "__main__":
+    #wms_url = "https://api.dataforsyningen.dk/dhm_DAF?service=WMS"
     wms_url = "https://api.dataforsyningen.dk/orto_foraar_DAF?service=WMS"
     TOKEN = "f8dbeb10b068e37b646751d5da8ffaaf"
     wms = WebMapService(wms_url, version="1.3.0", timeout=60)
-    bbox = (725000, 6170000, 726000, 6171000)
+    bbox = (725000, 6170000, 725100, 6170100)
     
     im_size = (
         8 * (bbox[2] - bbox[0]),
@@ -91,5 +103,14 @@ if __name__ == "__main__":
     )  # (width, height) approximately 8 pixels per meter as WMS resolution is 12.5 cm/pixel
     GISimage = get_bbox_dataforsyningen(bbox, wms, TOKEN, size=im_size)
 
-    plt.imshow(GISimage)
+    # WCS
+    GISdem = get_bbox_dataforsyningen_wcs(bbox, TOKEN, layer="dhm_terraen", size=im_size)
+
+    fig, axes = plt.subplots(1, 2)
+    axes[0].imshow(GISimage)
+    axes[0].set_title("WMS Image")
+    axes[1].imshow(GISdem)
+    axes[1].set_title("WCS Image")
     plt.show()
+
+    

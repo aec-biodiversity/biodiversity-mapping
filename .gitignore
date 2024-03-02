@@ -4,7 +4,8 @@ __pycache__/
 *$py.class
 
 # wmsCache
-wmsCache/*
+wmsCache/*.png
+wcsCache/*.tiff
 !wmsCache/.gitkeep
 
 # C extensions
