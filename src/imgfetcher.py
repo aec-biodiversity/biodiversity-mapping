@@ -10,8 +10,11 @@ import requests
 import imageio
 import numpy as np
 
+TOKEN = "f8dbeb10b068e37b646751d5da8ffaaf"
+WMS_ENDPOINT = "https://api.dataforsyningen.dk/orto_foraar_DAF?service=WMS"
 
-def get_bbox_dataforsyningen(
+
+async def get_bbox_dataforsyningen(
     bbox: Tuple[float, float, float, float],
     wms: object,
     token: str,
@@ -41,7 +44,7 @@ def get_bbox_dataforsyningen(
     # Calculate the hash for the request
     params_string = f"{wms.url}{wms.version}{bbox}{layers}{size}{transparent}"
     request_hash = hashlib.md5(params_string.encode()).hexdigest()
-    png_path = f"wmsCache/{request_hash}.png"
+    png_path = f"../wmsCache/{request_hash}.png"
     
     if os.path.exists(png_path):
         image = Image.open(png_path)
@@ -61,7 +64,8 @@ def get_bbox_dataforsyningen(
         image.save(png_path)
         return image
 
-def get_bbox_dataforsyningen_wcs(
+
+async def get_bbox_dataforsyningen_wcs(
     bbox: Tuple[float, float, float, float],
     token: str,
     layer: str = "dhm_terraen",
@@ -75,7 +79,7 @@ def get_bbox_dataforsyningen_wcs(
     params = f"&token={token}&REQUEST=GetCoverage&coverage={layer}&CRS=epsg:25832&bbox={str(bbox)[1:-1]}&height={size[0]}&width={size[1]}&format=gtiff"
 
     request_hash = hashlib.md5(params.encode()).hexdigest()
-    tiff_path = f"wcsCache/{request_hash}.tiff"
+    tiff_path = f"../wcsCache/{request_hash}.tiff"
 
     if os.path.exists(tiff_path):
         image = imageio.imread(tiff_path)
@@ -90,27 +94,8 @@ def get_bbox_dataforsyningen_wcs(
         return np.array(image)
 
 
-if __name__ == "__main__":
-    #wms_url = "https://api.dataforsyningen.dk/dhm_DAF?service=WMS"
-    wms_url = "https://api.dataforsyningen.dk/orto_foraar_DAF?service=WMS"
-    TOKEN = "f8dbeb10b068e37b646751d5da8ffaaf"
-    wms = WebMapService(wms_url, version="1.3.0", timeout=60)
-    bbox = (725000, 6170000, 725100, 6170100)
-    
-    im_size = (
-        8 * (bbox[2] - bbox[0]),
-        8 * (bbox[3] - bbox[1]),
-    )  # (width, height) approximately 8 pixels per meter as WMS resolution is 12.5 cm/pixel
-    GISimage = get_bbox_dataforsyningen(bbox, wms, TOKEN, size=im_size)
+async def fetch_img(bbox, size, **kwargs):
+    wms = WebMapService(WMS_ENDPOINT, version="1.3.0", timeout=60)
+    GISimage = await get_bbox_dataforsyningen(bbox, wms, TOKEN, size=size, **kwargs)
 
-    # WCS
-    GISdem = get_bbox_dataforsyningen_wcs(bbox, TOKEN, layer="dhm_terraen", size=im_size)
-
-    fig, axes = plt.subplots(1, 2)
-    axes[0].imshow(GISimage)
-    axes[0].set_title("WMS Image")
-    axes[1].imshow(GISdem)
-    axes[1].set_title("WCS Image")
-    plt.show()
-
-    
+    return GISimage

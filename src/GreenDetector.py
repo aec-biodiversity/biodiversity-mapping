@@ -6,6 +6,9 @@ from sklearn.preprocessing import StandardScaler
 
 from PIL import Image
 
+import imgfetcher
+
+## Green detection
 def _reshape_img(img):
     """Return image as m-by-3 matrix"""
     return np.reshape(img, newshape=(-1, 3), order="C")
@@ -16,10 +19,9 @@ def gis2np(img):
     return np.array(img.convert("RGB"))
 
 
-def rel_channel(img, channel: int = 0, threshold: float = 0.4):
+def rel_channel(img, channel: int = 0):
     """Return relative weight of a channel"""
     y = img[:,:,channel] / img.sum(axis=-1)
-    y[y < threshold] = 0
     return y
 
 
@@ -47,3 +49,18 @@ def corr(img, tgt_vec=[1, 0.5, 0.5]):
     b = np.asarray(tgt_vec)
     x = np.tensordot(img / x_mag, b, axes=1)
     return x
+
+
+async def fetch_green_mask(bbox, size, method="corr", **kwargs):
+    gis_img = await imgfetcher.fetch_img(bbox, size, **kwargs)
+
+    img = gis2np(gis_img)
+    if method == "corr":
+        x = corr(img)
+        return x > 1.15
+    elif method == "threshold":
+        x = rel_channel(img)
+        return x > 0.4
+    else:
+        raise NotImplementedError("Use method 'corr' or 'threshold'")
+    
