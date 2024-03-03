@@ -10,9 +10,9 @@ rng = np.random.default_rng()
 
 # Sidebar inputs
 minx = st.sidebar.number_input('minx', value=220100.0)
-maxx = st.sidebar.number_input('maxx', value=220200.0)
-miny = st.sidebar.number_input('miny', value=170500.0)
-maxy = st.sidebar.number_input('maxy', value=170600.0)
+maxx = st.sidebar.number_input('maxx', value=220400.0)
+miny = st.sidebar.number_input('miny', value=170600.0)
+maxy = st.sidebar.number_input('maxy', value=170900.0)
 
 calculate_button = st.sidebar.button('Calculate')
 
@@ -25,5 +25,8 @@ if calculate_button:
     gplot, gfrac = greendetector.make_green_plot(bbox)
     plot = greendetector.make_tree_plot((minx, miny, maxx, maxy))
     st.pyplot(gplot)
-    st.sidebar.text(f"Share covered by vegetation: {(gfrac*100):.1f}%")
+    
+    st.sidebar.markdown(f"### KPI")
+    st.sidebar.text(f"Vegetation coverage: {(gfrac*100):.1f}%")
+    st.sidebar.text(f"Biomass: {(greendetector.BIOMASS_EST0):.1f} m3")
     st.plotly_chart(plot, use_container_width=True)

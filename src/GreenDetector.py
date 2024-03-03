@@ -139,9 +139,13 @@ def make_green_plot(bbox):
     fig = plt.figure(figsize=(5,5))
     ax = fig.add_subplot()
     ax.imshow(img)
+    fig.patch.set_facecolor('black')
+    fig.tight_layout()
 
     green_mask = corr(img) > 1.15
     green_fraction = green_mask.sum() / green_mask.size
 
     return fig, green_fraction
 
+
+BIOMASS_EST0 = 5007.6
