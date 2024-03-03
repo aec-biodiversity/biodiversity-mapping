@@ -5,3 +5,4 @@ pillow
 notebook
 matplotlib
 OWSLib
+laspy

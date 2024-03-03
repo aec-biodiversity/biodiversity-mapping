@@ -14,7 +14,7 @@ TOKEN = "f8dbeb10b068e37b646751d5da8ffaaf"
 WMS_ENDPOINT = "https://api.dataforsyningen.dk/orto_foraar_DAF?service=WMS"
 
 
-async def get_bbox_dataforsyningen(
+def get_bbox_dataforsyningen(
     bbox: Tuple[float, float, float, float],
     wms: object,
     token: str,
@@ -41,31 +41,35 @@ async def get_bbox_dataforsyningen(
     if size is None:
         size = int(8 * (bbox[2] - bbox[0])), int(8 * (bbox[3] - bbox[1]))
 
-    # Calculate the hash for the request
-    params_string = f"{wms.url}{wms.version}{bbox}{layers}{size}{transparent}"
-    request_hash = hashlib.md5(params_string.encode()).hexdigest()
-    png_path = f"../wmsCache/{request_hash}.png"
+    images = []
+    for layer in layers:
+        # Calculate the hash for the request
+        params_string = f"{wms.url}{wms.version}{bbox}{layer}{size}{transparent}"
+        request_hash = hashlib.md5(params_string.encode()).hexdigest()
+        png_path = f"../wmsCache/{request_hash}.png"
+        
+        if os.path.exists(png_path):
+            image = Image.open(png_path)
+            images.append(image)
+        
+        else:
+            wms_response = wms.getmap(
+                layers=[layer],
+                srs="EPSG:25832",
+                bbox=bbox,
+                size=size,
+                format="image/png",
+                transparent=transparent,
+                token=token,
+            )
+            image = Image.open(io.BytesIO(wms_response.read()))
+            image.save(png_path)
+            images.append(image)
     
-    if os.path.exists(png_path):
-        image = Image.open(png_path)
-        return image
-    
-    else:
-        wms_response = wms.getmap(
-            layers=layers,
-            srs="EPSG:25832",
-            bbox=bbox,
-            size=size,
-            format="image/png",
-            transparent=transparent,
-            token=token,
-        )
-        image = Image.open(io.BytesIO(wms_response.read()))
-        image.save(png_path)
-        return image
+    return images
 
 
-async def get_bbox_dataforsyningen_wcs(
+def get_bbox_dataforsyningen_wcs(
     bbox: Tuple[float, float, float, float],
     token: str,
     layer: str = "dhm_terraen",
@@ -94,8 +98,8 @@ async def get_bbox_dataforsyningen_wcs(
         return np.array(image)
 
 
-async def fetch_img(bbox, size, **kwargs):
+def fetch_images(bbox, size, **kwargs):
     wms = WebMapService(WMS_ENDPOINT, version="1.3.0", timeout=60)
-    GISimage = await get_bbox_dataforsyningen(bbox, wms, TOKEN, size=size, **kwargs)
+    images = get_bbox_dataforsyningen(bbox, wms, TOKEN, size=size, **kwargs)
 
-    return GISimage
+    return images
