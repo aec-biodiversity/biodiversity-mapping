@@ -5,6 +5,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from PIL import Image
+import plotly.graph_objects as go
 
 import imgfetcher
 
@@ -55,7 +56,7 @@ def fetch_green_mask(bbox, size, method="corr", **kwargs):
     
     # Method is tuned for this layer type
     layers = ["geodanmark_2023_12_5cm_cir"]
-    gis_img = imgfetcher.fetch_img(bbox, size, layers=layers, **kwargs)
+    gis_img = imgfetcher.fetch_img(bbox, size, layers=layers, **kwargs)[0]
 
     img = gis2np(gis_img)
     if method == "corr":
@@ -91,14 +92,56 @@ def points_in_bbox(las_file, bbox):
 
 import matplotlib.pyplot as plt
 
-LAS_FILE = r"../data/PUNKTSKY_1km_6170_720.las"
-def make_3d_plot(bbox, n_pts=10000):
+COLORS = {
+    5: [0.2, .6, .37],
+    6: [.8, .3, .2],
+    2: [0.5, .9, .3],
+    4: [.6, .5, .3]
+}
+
+LAS_FILE = r"./data/PUNKTSKY_1km_6170_720.las"
+def make_tree_plot(bbox, n_pts=60000):
     xyz, classes = points_in_bbox(LAS_FILE, bbox)
 
+    colors = np.zeros((classes.size, 3))
+    for k, v in COLORS.items():
+        idx = classes == k
+        colors[idx, :] = np.array(v)
+    
     rng = np.random.default_rng()
     idx = rng.integers(0, xyz.shape[1], n_pts)
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
 
-    ax.scatter(xyz[0, idx], xyz[1, idx], xyz[2, idx], c=classes[idx], s=1)
+    fig = go.Figure(data=[go.Scatter3d(
+        x=xyz[0, idx],
+        y=xyz[1, idx],
+        z=xyz[2, idx],
+        mode='markers',
+        marker=dict(color=colors[idx, :]),
+    )])
+    fig.update_traces(marker_size = 1)
+    fig.update_layout(
+        margin=dict(l=0, r=0, b=0, t=0),
+        scene=dict(aspectmode="cube"),
+    )
+
     return fig
+
+
+def make_green_plot(bbox):
+    layers = ["geodanmark_2023_12_5cm_cir"]
+    im_size = (
+        8 * (bbox[2] - bbox[0]),
+        8 * (bbox[3] - bbox[1]),
+    )
+    images = imgfetcher.fetch_images(bbox, im_size, layers=layers)
+    img = [gis2np(img) for img in images][0]
+
+    fig = plt.figure(figsize=(5,5))
+    ax = fig.add_subplot()
+    ax.imshow(img)
+
+    green_mask = corr(img) > 1.15
+    green_fraction = green_mask.sum() / green_mask.size
+
+    return fig, green_fraction
+

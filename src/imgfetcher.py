@@ -46,7 +46,7 @@ def get_bbox_dataforsyningen(
         # Calculate the hash for the request
         params_string = f"{wms.url}{wms.version}{bbox}{layer}{size}{transparent}"
         request_hash = hashlib.md5(params_string.encode()).hexdigest()
-        png_path = f"../wmsCache/{request_hash}.png"
+        png_path = f"./wmsCache/{request_hash}.png"
         
         if os.path.exists(png_path):
             image = Image.open(png_path)
